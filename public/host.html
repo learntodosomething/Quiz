@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K-pop Kvíz — Kezelőfelület</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jersey+25&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0414;
+    --ink: #f5f3ff;
+    --muted: #b9a9dd;
+    --accent: #ffcc4d;
+    --pink: #ff5fa2;
+    --purple: #9b5bf0;
+    --purple-light: #c9a6ff;
+    --shape-a: #e64980;
+    --shape-b: #4dabf7;
+    --shape-c: #38d996;
+    --shape-d: #ff922b;
+    --panel: rgba(255,255,255,0.06);
+    --border: rgba(200,170,255,0.25);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    background: url('/assets/bg.png') center/cover no-repeat fixed, var(--bg);
+    color: var(--ink);
+    font-family: 'Jersey 25', system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+  @keyframes flickerIn {
+    0%   { opacity: 0; }
+    8%   { opacity: 0.6; }
+    12%  { opacity: 0; }
+    20%  { opacity: 0.7; }
+    26%  { opacity: 0.05; }
+    34%  { opacity: 1; }
+    45%  { opacity: 0.3; }
+    56%  { opacity: 1; }
+    100% { opacity: 1; }
+  }
+  .flicker {
+    opacity: 0;
+    animation: flickerIn 1s steps(1, end) forwards;
+  }
+  #sparkle-bg {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .corner-deco {
+    position: fixed;
+    width: 160px;
+    height: auto;
+    z-index: 0;
+    opacity: 0.9;
+    pointer-events: none;
+    filter: drop-shadow(0 0 10px rgba(200,170,255,0.25));
+  }
+  .corner-deco.tl { top: 18px; left: 18px; }
+  .corner-deco.tr { top: 18px; right: 18px; transform: scaleX(-1); }
+  .corner-deco.bl { bottom: 18px; left: 18px; transform: scaleY(-1); }
+  .corner-deco.br { bottom: 18px; right: 18px; transform: scale(-1, -1); }
+  @media (max-width: 700px) {
+    .corner-deco { width: 90px; }
+  }
+  /* Kör közben (zenehallgatás): logó, elválasztó és sarok-dekoráció eltűnik */
+  body.state-listening .logo-img,
+  body.state-listening .divider-img,
+  body.state-listening .corner-deco {
+    display: none;
+  }
+  /* Feloldáskor: a sarok-dekoráció visszatér, logó/elválasztó marad rejtve */
+  body.state-reveal .logo-img,
+  body.state-reveal .divider-img {
+    display: none;
+  }
+  .wrap {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 24px 60px;
+  }
+  .logo-img {
+    max-width: 480px;
+    width: 80%;
+    height: auto;
+    margin: 4px 0 6px;
+    filter: drop-shadow(0 0 22px rgba(200,140,255,0.45));
+  }
+  .divider-img {
+    width: 320px;
+    max-width: 70%;
+    height: auto;
+    margin: 4px 0 30px;
+    opacity: 0.95;
+  }
+  .jersey { font-family: 'Jersey 25', system-ui, sans-serif; }
+  .glow {
+    text-shadow:
+      0 0 6px rgba(255,255,255,0.85),
+      0 0 18px rgba(255,255,255,0.5),
+      0 0 34px var(--pink);
+  }
+
+  /* ---- LOBBY ---- */
+  #lobby {
+    width: 100%;
+    max-width: 940px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    align-items: stretch;
+  }
+  @media (max-width: 760px) { #lobby { grid-template-columns: 1fr; } }
+  .card {
+    background: linear-gradient(180deg, rgba(155,91,240,0.16), rgba(20,10,40,0.35));
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 28px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 0 30px rgba(120,60,220,0.15), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .card.transparent {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .card h2 {
+    margin: 0 0 6px;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    font-weight: 600;
+    text-align: center;
+  }
+  #qrimg {
+    background: #fff;
+    border-radius: 14px;
+    padding: 14px;
+    width: 220px;
+    height: 220px;
+    display: block;
+    margin: 16px auto 12px;
+    box-shadow: 0 0 26px rgba(200,140,255,0.35);
+  }
+  #url { text-align: center; font-size: 15px; color: var(--purple-light); word-break: break-all; font-weight: 600; }
+
+  .orbit {
+    position: relative;
+    width: 100%;
+    height: 260px;
+    margin-top: 6px;
+  }
+  #playercount {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 64px;
+    color: var(--purple-light);
+    line-height: 1;
+    text-shadow: 0 0 18px rgba(200,140,255,0.7);
+    z-index: 5;
+    pointer-events: none;
+  }
+  .bubble {
+    position: absolute;
+    top: 0; left: 0;
+    padding: 7px 14px;
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 16px 16px 16px 4px;
+    font-size: 14px;
+    font-family: 'Jersey 25', sans-serif;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    color: #fff;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 0 12px rgba(200,140,255,0.25);
+    z-index: 3;
+    will-change: transform;
+  }
+  .bubble::after {
+    content: '';
+    position: absolute;
+    left: 10px; bottom: -7px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.4);
+  }
+
+  .start-wrap { width: 100%; max-width: 940px; display: flex; justify-content: center; margin-top: 30px; }
+  .startbtn { min-width: 240px; }
+
+  button {
+    font-family: 'Jersey 25', system-ui, sans-serif;
+    cursor: pointer;
+    border: none;
+    border-radius: 999px;
+    padding: 14px 28px;
+    font-size: 24px;
+    letter-spacing: 0.03em;
+    transition: transform 0.12s ease, filter 0.12s ease;
+  }
+  button:active { transform: scale(0.97); }
+  .primary {
+    background: linear-gradient(180deg, #b98cf5, #7b3fd6);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+    box-shadow: 0 0 24px rgba(155,91,240,0.6), inset 0 1px 0 rgba(255,255,255,0.35);
+  }
+  .primary:hover { filter: brightness(1.08); }
+  .primary:disabled { opacity: 0.3; cursor: not-allowed; box-shadow: none; }
+  .ghost {
+    background: linear-gradient(180deg, rgba(155,91,240,0.35), rgba(90,40,160,0.35));
+    color: #fff;
+    border: 1px solid var(--border);
+  }
+
+  /* ---- ROUND VIEW ---- */
+  #roundview { display: none; width: 100%; max-width: 1000px; text-align: center; }
+  .qmeta { color: var(--muted); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 14px; margin-bottom: 6px; }
+
+  .countdown-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin: 10px 0 34px;
+  }
+  .ring-countdown {
+    position: relative;
+    width: 220px;
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+  }
+  .ring-countdown .ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 10px solid #ffffff;
+    box-shadow: 0 0 12px #fff, 0 0 28px #fff, 0 0 55px rgba(200,140,255,0.9);
+  }
+  .ring-countdown .ring.outer { inset: 0; }
+  .ring-countdown .ring.inner { inset: 34px; border-width: 8px; opacity: 0.9; }
+  #ringContent {
+    position: relative;
+    z-index: 2;
+    font-size: 64px;
+    color: #fff;
+    text-shadow: 0 0 10px #fff;
+    line-height: 1;
+  }
+  #ringContent.clickable { cursor: pointer; }
+  audio#instrumental { display: none; }
+
+  .video-frame {
+    position: relative;
+    width: 100%;
+    max-width: 640px;
+    aspect-ratio: 16 / 9;
+    margin: 0 auto 22px;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #000;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.18), 0 0 50px rgba(160,91,255,0.65), 0 0 90px rgba(255,95,162,0.4);
+  }
+  .video-frame video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .video-frame .noVideoMsg {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 16px; padding: 20px; text-align: center;
+  }
+  .video-stars {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.5;
+    background-image:
+      radial-gradient(2px 2px at 10% 20%, #fff, transparent),
+      radial-gradient(2px 2px at 80% 15%, #fff, transparent),
+      radial-gradient(1.5px 1.5px at 60% 70%, #fff, transparent),
+      radial-gradient(2px 2px at 30% 80%, #fff, transparent),
+      radial-gradient(1.5px 1.5px at 90% 55%, #fff, transparent),
+      radial-gradient(1.5px 1.5px at 45% 35%, #fff, transparent),
+      radial-gradient(2px 2px at 15% 60%, #fff, transparent),
+      radial-gradient(1.5px 1.5px at 70% 90%, #fff, transparent);
+    background-repeat: no-repeat;
+    mix-blend-mode: screen;
+    z-index: 2;
+  }
+
+  .reveal-caption {
+    display: inline-block;
+    margin: 0 auto 24px;
+    padding: 12px 30px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(190,140,255,0.5), rgba(90,40,160,0.55));
+    border: 1px solid rgba(255,255,255,0.35);
+    font-size: 22px;
+    color: #fff;
+    text-shadow: 0 0 10px rgba(255,255,255,0.5);
+    box-shadow: 0 0 20px rgba(155,91,240,0.4);
+  }
+
+  .controls { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+  /* HUD: bal középen a válaszolt/összes létszám, jobb lent a pipa */
+  .hud-left {
+    position: fixed;
+    left: 26px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 38px;
+    color: #fff;
+    text-shadow: 0 0 14px rgba(200,140,255,0.7);
+    z-index: 20;
+  }
+  .hud-check {
+    position: fixed;
+    right: 30px;
+    bottom: 30px;
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    z-index: 20;
+  }
+  .hud-check svg { width: 28px; height: 28px; }
+  .ready-badge {
+    display: none;
+    margin: 0 auto 8px;
+    padding: 12px 26px;
+    border-radius: 999px;
+    font-size: 20px;
+    animation: readyPop 0.4s ease;
+  }
+  .ready-badge.show { display: inline-flex; align-items: center; gap: 8px; }
+  @keyframes readyPop {
+    0% { transform: scale(0.7); opacity: 0; }
+    70% { transform: scale(1.08); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @media (max-width: 700px) {
+    .hud-left { font-size: 26px; left: 14px; }
+    .hud-check { width: 56px; height: 56px; right: 16px; bottom: 16px; font-size: 24px; }
+  }
+
+  /* ---- SCOREBOARD ---- */
+  #scoreboardWrap { display: none; width: 100%; max-width: 640px; text-align: center; }
+  #scoreboardWrap h2 { font-size: clamp(30px, 5vw, 46px); margin-bottom: 24px; font-weight: 400; }
+  .score-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px 22px; margin-bottom: 10px;
+    font-size: 18px; font-weight: 700;
+  }
+  .score-row .rank { color: var(--muted); width: 30px; text-align: left; }
+  .score-row .name { flex: 1; text-align: left; padding-left: 6px; }
+  .score-row .pts { color: var(--accent); }
+  .score-row.top1 { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset, 0 0 20px rgba(255,204,77,0.3); }
+</style>
+</head>
+<body>
+<canvas id="sparkle-bg"></canvas>
+<img class="corner-deco tl" src="/assets/deco1.png" alt="">
+<img class="corner-deco tr" src="/assets/deco1.png" alt="">
+<img class="corner-deco bl" src="/assets/deco1.png" alt="">
+<img class="corner-deco br" src="/assets/deco1.png" alt="">
+
+<div class="wrap">
+  <img class="logo-img flicker" style="animation-delay:0s;" src="/assets/logo.png" alt="K-pop Kvíz">
+  <img class="divider-img flicker" style="animation-delay:0.3s;" src="/assets/deco2.png" alt="">
+
+  <!-- LOBBY -->
+  <div id="lobby">
+    <div class="card flicker" style="animation-delay:0.6s;">
+      <h2>Csatlakozás telefonról</h2>
+      <img id="qrimg" class="flicker" style="animation-delay:1.6s;" alt="QR kód a csatlakozáshoz" />
+      <div id="url">betöltés…</div>
+    </div>
+    <div class="card transparent flicker" style="animation-delay:0.9s;">
+      <h2>Csatlakozott játékosok</h2>
+      <div class="orbit" id="orbit">
+        <div id="playercount">0</div>
+      </div>
+    </div>
+  </div>
+  <div class="start-wrap flicker" style="animation-delay:1.2s;">
+    <button class="primary startbtn" id="startBtn" disabled>START</button>
+  </div>
+
+  <!-- ROUND VIEW -->
+  <div id="roundview">
+    <div class="qmeta"><span id="qIndex">1</span> / <span id="qTotal">5</span>. dal</div>
+
+    <div class="countdown-zone">
+      <div class="ring-countdown">
+        <div class="ring outer"></div>
+        <div class="ring inner"></div>
+        <div id="ringContent">8</div>
+      </div>
+      <audio id="instrumental" preload="auto"></audio>
+    </div>
+
+    <div class="ready-badge primary" id="readyBadge">✓ Mindenki válaszolt!</div>
+
+    <div class="video-frame" id="videoFrame" style="display:none;">
+      <video id="revealVideo" controls></video>
+      <div class="video-stars"></div>
+      <div class="noVideoMsg" id="noVideoMsg" style="display:none;"></div>
+    </div>
+    <div class="reveal-caption" id="revealCaption" style="display:none;"></div>
+
+    <div class="controls">
+      <button class="ghost" id="nextBtn" style="display:none;">Következő dal</button>
+    </div>
+
+    <div class="hud-left" id="answeredHud">0/0</div>
+    <button class="primary hud-check" id="revealBtn" title="Megoldás megmutatása">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5 13l4 4L19 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- SCOREBOARD -->
+  <div id="scoreboardWrap">
+    <h2 class="jersey glow" id="scoreTitle">Végeredmény</h2>
+    <div id="scoreList"></div>
+    <button class="ghost" id="restartBtn" style="margin-top:24px;">Új kvíz indítása</button>
+  </div>
+</div>
+
+<script>
+  // ---- Csillogó háttér (canvas) ----
+  (function sparkleBackground() {
+    const canvas = document.getElementById('sparkle-bg');
+    const ctx = canvas.getContext('2d');
+    let width, height, stars = [];
+    const STAR_COUNT = 110;
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      stars = [];
+      for (let i = 0; i < STAR_COUNT; i++) {
+        stars.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          radius: Math.random() * 1.8 + 0.4,
+          alpha: Math.random(),
+          speed: Math.random() * 0.02 + 0.003,
+          glow: Math.random() * 22 + 8,
+          moveX: (Math.random() - 0.5) * 0.12,
+          moveY: (Math.random() - 0.5) * 0.12
+        });
+      }
+    }
+
+    function drawStar(star) {
+      ctx.save();
+      ctx.globalAlpha = star.alpha;
+      ctx.shadowBlur = star.glow;
+      ctx.shadowColor = '#e6d4ff';
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(star.x - star.radius * 4, star.y);
+      ctx.lineTo(star.x + star.radius * 4, star.y);
+      ctx.moveTo(star.x, star.y - star.radius * 4);
+      ctx.lineTo(star.x, star.y + star.radius * 4);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, width, height);
+      stars.forEach((star) => {
+        star.alpha += star.speed;
+        if (star.alpha >= 1 || star.alpha <= 0.15) star.speed *= -1;
+        star.x += star.moveX;
+        star.y += star.moveY;
+        if (star.x < 0) star.x = width;
+        if (star.x > width) star.x = 0;
+        if (star.y < 0) star.y = height;
+        if (star.y > height) star.y = 0;
+        drawStar(star);
+      });
+      requestAnimationFrame(animate);
+    }
+
+    resize();
+    animate();
+    window.addEventListener('resize', resize);
+  })();
+</script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+
+  const lobby = document.getElementById('lobby');
+  const startWrap = document.querySelector('.start-wrap');
+  const roundview = document.getElementById('roundview');
+  const scoreboardWrap = document.getElementById('scoreboardWrap');
+
+  fetch('/api/info').then(r => r.json()).then(data => {
+    document.getElementById('qrimg').src = data.qr;
+    document.getElementById('url').textContent = data.url;
+  });
+
+  const playercount = document.getElementById('playercount');
+  const startBtn = document.getElementById('startBtn');
+  let totalPlayers = 0;
+
+  // ---- Lebegő "gondolatbuborék" fizika a játékosneveknek ----
+  const orbit = document.getElementById('orbit');
+  const bubbles = new Map(); // name -> { el, x, y, vx, vy, w, h }
+
+  function randVel() {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 0.35 + Math.random() * 0.3;
+    return { vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed };
+  }
+
+  function syncBubbles(names) {
+    const cw = orbit.clientWidth || 300;
+    const ch = orbit.clientHeight || 260;
+
+    // új játékosok hozzáadása
+    names.forEach((name) => {
+      if (bubbles.has(name)) return;
+      const el = document.createElement('div');
+      el.className = 'bubble';
+      el.textContent = name;
+      orbit.appendChild(el);
+      const w = el.offsetWidth || 60;
+      const h = el.offsetHeight || 28;
+      const { vx, vy } = randVel();
+      bubbles.set(name, {
+        el,
+        x: Math.random() * Math.max(cw - w, 10),
+        y: Math.random() * Math.max(ch - h, 10),
+        vx, vy, w, h
+      });
+    });
+
+    // eltűnt játékosok eltávolítása
+    [...bubbles.keys()].forEach((name) => {
+      if (!names.includes(name)) {
+        bubbles.get(name).el.remove();
+        bubbles.delete(name);
+      }
+    });
+  }
+
+  function stepBubbles() {
+    const cw = orbit.clientWidth || 300;
+    const ch = orbit.clientHeight || 260;
+    const list = [...bubbles.values()];
+
+    list.forEach((b) => {
+      b.x += b.vx;
+      b.y += b.vy;
+      if (b.x <= 0) { b.x = 0; b.vx *= -1; }
+      if (b.x + b.w >= cw) { b.x = cw - b.w; b.vx *= -1; }
+      if (b.y <= 0) { b.y = 0; b.vy *= -1; }
+      if (b.y + b.h >= ch) { b.y = ch - b.h; b.vy *= -1; }
+    });
+
+    // buborék-buborék ütközés (egyszerű, egyenlő tömegű elasztikus visszapattanás)
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const a = list[i], b = list[j];
+        const acx = a.x + a.w / 2, acy = a.y + a.h / 2;
+        const bcx = b.x + b.w / 2, bcy = b.y + b.h / 2;
+        const dx = bcx - acx, dy = bcy - acy;
+        const dist = Math.hypot(dx, dy) || 0.001;
+        const minDist = (a.w + b.w) / 2 * 0.55 + (a.h + b.h) / 2 * 0.25;
+
+        if (dist < minDist) {
+          const nx = dx / dist, ny = dy / dist;
+          const overlap = (minDist - dist) / 2;
+          a.x -= nx * overlap; a.y -= ny * overlap;
+          b.x += nx * overlap; b.y += ny * overlap;
+
+          const avn = a.vx * nx + a.vy * ny;
+          const bvn = b.vx * nx + b.vy * ny;
+          a.vx += (bvn - avn) * nx; a.vy += (bvn - avn) * ny;
+          b.vx += (avn - bvn) * nx; b.vy += (avn - bvn) * ny;
+        }
+      }
+    }
+
+    list.forEach((b) => {
+      b.el.style.transform = `translate(${b.x}px, ${b.y}px)`;
+    });
+
+    requestAnimationFrame(stepBubbles);
+  }
+  requestAnimationFrame(stepBubbles);
+
+  socket.on('players-update', (names) => {
+    totalPlayers = names.length;
+    playercount.textContent = names.length;
+    startBtn.disabled = names.length === 0;
+    syncBubbles(names);
+  });
+
+  startBtn.onclick = () => socket.emit('start-quiz');
+
+  const questiontext = document.getElementById('qIndex');
+  const qTotal = document.getElementById('qTotal');
+  const answeredHud = document.getElementById('answeredHud');
+  const revealBtn = document.getElementById('revealBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const ringContent = document.getElementById('ringContent');
+  const instrumental = document.getElementById('instrumental');
+  const videoFrame = document.getElementById('videoFrame');
+  const revealVideo = document.getElementById('revealVideo');
+  const noVideoMsg = document.getElementById('noVideoMsg');
+  const revealCaption = document.getElementById('revealCaption');
+  const readyBadge = document.getElementById('readyBadge');
+
+  let countdownInterval = null;
+  let answeredCount = 0;
+
+  const REPLAY_SVG = `
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="46" height="46">
+      <path d="M4 12a8 8 0 1 1 2.34 5.66" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M4 17v-5h5" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+
+  socket.on('new-round', (r) => {
+    document.body.className = 'state-listening';
+    lobby.style.display = 'none';
+    startWrap.style.display = 'none';
+    scoreboardWrap.style.display = 'none';
+    roundview.style.display = 'block';
+    videoFrame.style.display = 'none';
+    revealVideo.pause();
+    revealVideo.removeAttribute('src');
+    revealVideo.style.display = 'block';
+    noVideoMsg.style.display = 'none';
+    revealCaption.style.display = 'none';
+
+    questiontext.textContent = r.index + 1;
+    qTotal.textContent = r.total;
+    answeredCount = 0;
+    answeredHud.textContent = `0/${totalPlayers}`;
+    readyBadge.classList.remove('show');
+    revealBtn.style.display = 'flex';
+    nextBtn.style.display = 'none';
+    ringContent.classList.remove('clickable');
+    ringContent.onclick = null;
+
+    if (r.instrumental) {
+      instrumental.src = r.instrumental;
+      instrumental.currentTime = 0;
+      instrumental.play().catch(() => {});
+    }
+
+    startCountdown(r.duration);
+  });
+
+  function startCountdown(duration) {
+    clearInterval(countdownInterval);
+    let remaining = duration;
+    ringContent.textContent = remaining;
+
+    countdownInterval = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(countdownInterval);
+        showReplay();
+        return;
+      }
+      ringContent.textContent = remaining;
+    }, 1000);
+  }
+
+  function showReplay() {
+    ringContent.innerHTML = REPLAY_SVG;
+    ringContent.classList.add('clickable');
+    ringContent.onclick = () => {
+      instrumental.currentTime = 0;
+      instrumental.play().catch(() => {});
+    };
+  }
+
+  socket.on('time-up', () => {
+    clearInterval(countdownInterval);
+    showReplay();
+  });
+
+  socket.on('answer-count', (count) => {
+    answeredCount = count;
+    answeredHud.textContent = `${count}/${totalPlayers}`;
+    if (totalPlayers > 0 && count >= totalPlayers) {
+      readyBadge.classList.add('show');
+    } else {
+      readyBadge.classList.remove('show');
+    }
+  });
+
+  revealBtn.onclick = () => socket.emit('reveal-answer');
+  readyBadge.onclick = () => socket.emit('reveal-answer');
+  readyBadge.style.cursor = 'pointer';
+
+  socket.on('reveal', (data) => {
+    document.body.className = 'state-reveal';
+    instrumental.pause();
+    clearInterval(countdownInterval);
+    revealBtn.style.display = 'none';
+    readyBadge.classList.remove('show');
+    nextBtn.style.display = 'inline-block';
+    ringContent.classList.remove('clickable');
+    ringContent.onclick = null;
+
+    revealCaption.style.display = 'inline-block';
+    revealCaption.textContent = data.correctText;
+
+    if (data.video) {
+      videoFrame.style.display = 'block';
+      revealVideo.style.display = 'block';
+      noVideoMsg.style.display = 'none';
+      revealVideo.src = data.video;
+      revealVideo.play().catch(() => {});
+    } else {
+      videoFrame.style.display = 'block';
+      revealVideo.style.display = 'none';
+      revealVideo.pause();
+      noVideoMsg.textContent = `🎵 ${escapeHtml(data.correctText)}`;
+      noVideoMsg.style.display = 'flex';
+    }
+  });
+
+  nextBtn.onclick = () => socket.emit('next-question');
+
+  socket.on('quiz-end', (scoreboard) => {
+    document.body.className = '';
+    roundview.style.display = 'none';
+    scoreboardWrap.style.display = 'block';
+    document.getElementById('scoreTitle').textContent = 'Végeredmény 🏆';
+    renderScoreboard(scoreboard);
+  });
+
+  socket.on('quiz-reset', () => {
+    document.body.className = '';
+    scoreboardWrap.style.display = 'none';
+    roundview.style.display = 'none';
+    lobby.style.display = 'grid';
+    startWrap.style.display = 'flex';
+  });
+
+  document.getElementById('restartBtn').onclick = () => socket.emit('restart-quiz');
+
+  function renderScoreboard(scoreboard) {
+    const list = document.getElementById('scoreList');
+    if (scoreboard.length === 0) {
+      list.innerHTML = '<p>Nincs egy játékos sem.</p>';
+      return;
+    }
+    list.innerHTML = scoreboard.map((p, i) => `
+      <div class="score-row ${i === 0 ? 'top1' : ''}">
+        <span class="rank">${i + 1}.</span>
+        <span class="name">${escapeHtml(p.name)}</span>
+        <span class="pts">${p.score} pont</span>
+      </div>
+    `).join('');
+  }
+
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+</script>
+</body>
+</html>

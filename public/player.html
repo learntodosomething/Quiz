@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>K-pop Kvíz — Csatlakozás</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jersey+25&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0414;
+    --ink: #f5f3ff;
+    --muted: #b9a9dd;
+    --accent: #ffcc4d;
+    --pink: #ff5fa2;
+    --purple: #9b5bf0;
+    --purple-light: #c9a6ff;
+    --shape-a: #e64980;
+    --shape-b: #4dabf7;
+    --shape-c: #38d996;
+    --shape-d: #ff922b;
+    --panel: rgba(255,255,255,0.06);
+    --border: rgba(200,170,255,0.25);
+    --ok: #38d996;
+    --bad: #ff5d5d;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: url('/assets/bg.png') center/cover no-repeat fixed, var(--bg);
+    color: var(--ink);
+    font-family: 'Jersey 25', system-ui, sans-serif;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+  }
+  #sparkle-bg {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .screen { position: relative; z-index: 1; }
+  .screen {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 22px 18px 30px;
+  }
+  .view { display: none; flex: 1; flex-direction: column; }
+  .view.active { display: flex; }
+
+  .jersey { font-family: 'Jersey 25', system-ui, sans-serif; }
+  .glow {
+    text-shadow: 0 0 6px rgba(255,255,255,0.85), 0 0 16px rgba(255,255,255,0.5), 0 0 30px var(--pink);
+  }
+  h1.logo {
+    font-size: 30px;
+    font-weight: 400;
+    color: #fff;
+    margin: 0 0 26px;
+    text-align: center;
+  }
+  h1.logo span { color: var(--accent); }
+
+  /* JOIN */
+  #view-join { justify-content: center; gap: 18px; }
+  #view-join p.lead { text-align: center; color: var(--muted); margin: 0 0 10px; font-size: 15px; }
+  input#nameInput {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    color: var(--ink);
+    font-size: 18px;
+    font-weight: 600;
+    text-align: center;
+    
+  }
+  input#nameInput::placeholder { color: var(--muted); }
+  button {
+    font-family: 'Jersey 25', system-ui, sans-serif;
+    cursor: pointer;
+    border: none;
+    border-radius: 14px;
+    padding: 16px;
+    font-size: 22px;
+    letter-spacing: 0.02em;
+    transition: transform 0.12s ease, filter 0.12s ease, opacity .15s ease;
+  }
+  button:active { transform: scale(0.97); }
+  .primary {
+    background: linear-gradient(180deg, #b98cf5, #7b3fd6);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+    box-shadow: 0 0 22px rgba(155,91,240,0.55), inset 0 1px 0 rgba(255,255,255,0.35);
+    border-radius: 999px;
+  }
+  .primary:disabled { opacity: 0.35; box-shadow: none; }
+
+  /* WAITING */
+  #view-waiting { align-items: center; justify-content: center; text-align: center; gap: 14px; }
+  .pulse { width: 70px; height: 70px; border-radius: 50%; border: 4px solid var(--accent); border-top-color: transparent; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #view-waiting .who { color: var(--muted); font-size: 15px;  }
+  #view-waiting .who b { color: var(--ink); }
+
+  /* QUESTION */
+  #view-question { justify-content: flex-start; gap: 10px; }
+  .qmeta { text-align: center; color: var(--muted); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; font-size: 12px; }
+  .mini-timer { text-align: center; font-size: 30px; color: #fff; }
+  .mini-stars { display: flex; justify-content: center; gap: 8px; margin-bottom: 4px; }
+  .mini-stars .star { font-size: 18px; color: var(--accent); text-shadow: 0 0 8px rgba(255,204,77,0.8); transition: opacity .4s ease, transform .4s ease; }
+  .mini-stars .star.spent { opacity: 0.15; transform: scale(0.7); text-shadow: none; }
+
+  .answers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex: 1; margin-top: 8px; }
+  .ans-btn {
+    border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; font-size: 16px; font-weight: 700; color: #fff; min-height: 120px; padding: 12px; text-align: center;
+    
+  }
+  .ans-btn .shape { font-size: 28px; }
+  .ans-a { background: var(--shape-a); }
+  .ans-b { background: var(--shape-b); }
+  .ans-c { background: var(--shape-c); color: #073b2a; }
+  .ans-d { background: var(--shape-d); color: #3a1900; }
+  .ans-btn.disabled { opacity: 0.3; pointer-events: none; }
+  .ans-btn.chosen { outline: 4px solid #fff; }
+
+  /* LOCKED */
+  #view-locked { align-items: center; justify-content: center; text-align: center; gap: 12px; }
+  #view-locked .big { font-size: 44px; }
+  #view-locked .msg { color: var(--muted); font-size: 15px;  }
+
+  /* RESULT */
+  #view-result { align-items: center; justify-content: center; text-align: center; gap: 14px; }
+  .result-badge { width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: 900; }
+  .result-badge.ok { background: var(--ok); color: #073b2a; }
+  .result-badge.bad { background: var(--bad); color: #3a0000; }
+  #resultText { font-size: 20px; font-weight: 800;  }
+  #resultSub { color: var(--muted); font-size: 15px;  }
+  #scoreNow { color: var(--accent); font-weight: 800; font-size: 15px;  }
+
+  /* FINAL */
+  #view-final { align-items: center; justify-content: center; text-align: center; gap: 10px; }
+  #view-final .place { font-size: 56px; color: var(--accent); }
+  #view-final .placelabel { color: var(--muted); font-size: 15px;  }
+  #view-final .finalscore { font-size: 20px; font-weight: 800; margin-top: 6px;  }
+</style>
+</head>
+<body>
+<canvas id="sparkle-bg"></canvas>
+<div class="screen">
+  <img src="/assets/logo.png" alt="K-pop Kvíz" style="max-width:220px;width:70%;height:auto;display:block;margin:0 auto 18px;filter:drop-shadow(0 0 16px rgba(200,140,255,0.45));">
+
+
+  <!-- JOIN -->
+  <div class="view active" id="view-join">
+    <p class="lead">Add meg a neved a csatlakozáshoz</p>
+    <input id="nameInput" placeholder="Pl. Kovács Bence" maxlength="20" />
+    <button class="primary" id="joinBtn">Csatlakozás</button>
+  </div>
+
+  <!-- WAITING -->
+  <div class="view" id="view-waiting">
+    <div class="pulse"></div>
+    <div>Várakozás a kvíz indítására…</div>
+    <div class="who">Csatlakoztál mint <b id="myName"></b></div>
+  </div>
+
+  <!-- QUESTION -->
+  <div class="view" id="view-question">
+    <div class="qmeta"><span id="qIndex">1</span> / <span id="qTotal">5</span>. dal</div>
+    <div class="mini-stars" id="miniStars"></div>
+    <div class="mini-timer jersey" id="miniTimer">8</div>
+    <div class="answers-grid" id="answersGrid"></div>
+  </div>
+
+  <!-- LOCKED -->
+  <div class="view" id="view-locked">
+    <div class="big">✅</div>
+    <div>Válasz elküldve!</div>
+    <div class="msg">Várj a többi játékosra…</div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="view" id="view-result">
+    <div class="result-badge" id="resultBadge"></div>
+    <div id="resultText"></div>
+    <div id="resultSub"></div>
+    <div id="scoreNow"></div>
+  </div>
+
+  <!-- FINAL -->
+  <div class="view" id="view-final">
+    <div class="placelabel">Végső helyezésed</div>
+    <div class="place jersey" id="finalPlace">-</div>
+    <div class="finalscore" id="finalScore"></div>
+  </div>
+</div>
+
+<script>
+  (function sparkleBackground() {
+    const canvas = document.getElementById('sparkle-bg');
+    const ctx = canvas.getContext('2d');
+    let width, height, stars = [];
+    const STAR_COUNT = 60;
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      stars = [];
+      for (let i = 0; i < STAR_COUNT; i++) {
+        stars.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          radius: Math.random() * 1.6 + 0.4,
+          alpha: Math.random(),
+          speed: Math.random() * 0.02 + 0.003,
+          glow: Math.random() * 18 + 6,
+          moveX: (Math.random() - 0.5) * 0.1,
+          moveY: (Math.random() - 0.5) * 0.1
+        });
+      }
+    }
+
+    function drawStar(star) {
+      ctx.save();
+      ctx.globalAlpha = star.alpha;
+      ctx.shadowBlur = star.glow;
+      ctx.shadowColor = '#e6d4ff';
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, width, height);
+      stars.forEach((star) => {
+        star.alpha += star.speed;
+        if (star.alpha >= 1 || star.alpha <= 0.15) star.speed *= -1;
+        star.x += star.moveX;
+        star.y += star.moveY;
+        if (star.x < 0) star.x = width;
+        if (star.x > width) star.x = 0;
+        if (star.y < 0) star.y = height;
+        if (star.y > height) star.y = 0;
+        drawStar(star);
+      });
+      requestAnimationFrame(animate);
+    }
+
+    resize();
+    animate();
+    window.addEventListener('resize', resize);
+  })();
+</script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  const shapeClasses = ['ans-a', 'ans-b', 'ans-c', 'ans-d'];
+  const shapeIcons = ['▲', '◆', '●', '■'];
+  let myName = '';
+  let countdownInterval = null;
+
+  const views = {};
+  document.querySelectorAll('.view').forEach(v => views[v.id] = v);
+  function show(id) {
+    Object.values(views).forEach(v => v.classList.remove('active'));
+    views[id].classList.add('active');
+  }
+
+  const savedName = sessionStorage.getItem('quiz_name');
+  if (savedName) document.getElementById('nameInput').value = savedName;
+
+  document.getElementById('joinBtn').onclick = doJoin;
+  document.getElementById('nameInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doJoin();
+  });
+
+  function doJoin() {
+    const name = document.getElementById('nameInput').value.trim();
+    if (!name) return;
+    sessionStorage.setItem('quiz_name', name);
+    socket.emit('join', name);
+  }
+
+  socket.on('joined', (data) => {
+    myName = data.name;
+    document.getElementById('myName').textContent = myName;
+    show('view-waiting');
+  });
+
+  socket.on('new-round', (r) => {
+    document.getElementById('qIndex').textContent = r.index + 1;
+    document.getElementById('qTotal').textContent = r.total;
+
+    const grid = document.getElementById('answersGrid');
+    grid.innerHTML = r.options.map((opt, i) => `
+      <button class="ans-btn ${shapeClasses[i]}" data-i="${i}">
+        <span class="shape">${shapeIcons[i]}</span>
+        <span>${escapeHtml(opt)}</span>
+      </button>
+    `).join('');
+    grid.querySelectorAll('.ans-btn').forEach(btn => {
+      btn.onclick = () => {
+        const i = parseInt(btn.dataset.i, 10);
+        socket.emit('submit-answer', i);
+        grid.querySelectorAll('.ans-btn').forEach(b => b.classList.add('disabled'));
+        btn.classList.add('chosen');
+      };
+    });
+
+    const starsEl = document.getElementById('miniStars');
+    starsEl.innerHTML = Array.from({ length: 4 }, () => '<span class="star">★</span>').join('');
+
+    startCountdown(r.duration);
+    show('view-question');
+  });
+
+  function startCountdown(duration) {
+    clearInterval(countdownInterval);
+    const timerEl = document.getElementById('miniTimer');
+    const stars = [...document.getElementById('miniStars').children];
+    const perStar = duration / stars.length;
+    let remaining = duration;
+    timerEl.textContent = remaining;
+    timerEl.style.display = 'block';
+
+    countdownInterval = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(countdownInterval);
+        timerEl.style.display = 'none';
+        stars.forEach(s => s.classList.add('spent'));
+        return;
+      }
+      timerEl.textContent = remaining;
+      const spentCount = Math.floor((duration - remaining) / perStar);
+      stars.forEach((s, i) => { if (i < spentCount) s.classList.add('spent'); });
+    }, 1000);
+  }
+
+  socket.on('time-up', () => {
+    clearInterval(countdownInterval);
+    const timerEl = document.getElementById('miniTimer');
+    if (timerEl) timerEl.style.display = 'none';
+    document.querySelectorAll('#miniStars .star').forEach(s => s.classList.add('spent'));
+  });
+
+  socket.on('answer-received', () => {
+    show('view-locked');
+  });
+
+  socket.on('reveal', (data) => {
+    clearInterval(countdownInterval);
+    const mine = data.results.find(r => r.name === myName);
+    const badge = document.getElementById('resultBadge');
+    const text = document.getElementById('resultText');
+    const sub = document.getElementById('resultSub');
+    const scoreNow = document.getElementById('scoreNow');
+
+    if (mine && mine.correct) {
+      badge.className = 'result-badge ok';
+      badge.textContent = '✓';
+      text.textContent = 'Helyes válasz! +100 pont';
+    } else if (mine && mine.answered !== null) {
+      badge.className = 'result-badge bad';
+      badge.textContent = '✕';
+      text.textContent = 'Sajnos nem talált.';
+    } else {
+      badge.className = 'result-badge bad';
+      badge.textContent = '…';
+      text.textContent = 'Nem érkezett válasz.';
+    }
+    sub.textContent = `A helyes válasz: ${data.correctText}`;
+    const me = data.scoreboard.find(p => p.name === myName);
+    scoreNow.textContent = me ? `Összpontszámod: ${me.score}` : '';
+    show('view-result');
+  });
+
+  socket.on('quiz-end', (scoreboard) => {
+    const idx = scoreboard.findIndex(p => p.name === myName);
+    const place = idx >= 0 ? idx + 1 : '-';
+    const score = idx >= 0 ? scoreboard[idx].score : 0;
+    document.getElementById('finalPlace').textContent = idx >= 0 ? `${place}.` : '-';
+    document.getElementById('finalScore').textContent = `${score} pont`;
+    show('view-final');
+  });
+
+  socket.on('quiz-reset', () => {
+    show('view-waiting');
+  });
+
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+</script>
+</body>
+</html>
